@@ -18,9 +18,14 @@ RUN go build -o /discon-server discon-wrapper/discon-server
 # Create the final image
 FROM ubuntu:24.04
 
-# Install runtime dependencies
+# Install runtime dependencies including C, C++, and Fortran libraries
 RUN apt-get update && apt-get install -y \
     libc6 \
+    libstdc++6 \
+    libgcc-s1 \
+    libgfortran5 \
+    liblapack3 \
+    libblas3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the binary from the build stage

@@ -12,7 +12,10 @@ type Payload struct {
 	InFile  []byte
 	OutName []byte
 	Msg     []byte
-	buffer  bytes.Buffer
+	// GH-Cp gen: Added fields for file transfer
+	FileContent    []byte // Content of the controller input file
+	ServerFilePath []byte // Path where the file should be stored on server
+	buffer         bytes.Buffer
 }
 
 func (p *Payload) MarshalBinary() ([]byte, error) {
@@ -30,6 +33,15 @@ func (p *Payload) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	err = binary.Write(&p.buffer, binary.LittleEndian, uint32(len(p.Msg)))
+	if err != nil {
+		return nil, err
+	}
+	// GH-Cp gen: Added writing FileContent and ServerFilePath lengths
+	err = binary.Write(&p.buffer, binary.LittleEndian, uint32(len(p.FileContent)))
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&p.buffer, binary.LittleEndian, uint32(len(p.ServerFilePath)))
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +65,15 @@ func (p *Payload) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// GH-Cp gen: Added writing FileContent and ServerFilePath data
+	err = binary.Write(&p.buffer, binary.LittleEndian, p.FileContent)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&p.buffer, binary.LittleEndian, p.ServerFilePath)
+	if err != nil {
+		return nil, err
+	}
 	return p.buffer.Bytes(), nil
 }
 
@@ -63,6 +84,8 @@ func (p *Payload) UnmarshalBinary(data []byte) error {
 
 	// Read the lengths of the fields
 	var swapLen, inFileLen, outNameLen, msgLen uint32
+	// GH-Cp gen: Added variables for FileContent and ServerFilePath lengths
+	var fileContentLen, serverFilePathLen uint32
 
 	err := binary.Read(r, binary.LittleEndian, &swapLen)
 	if err != nil {
@@ -80,6 +103,15 @@ func (p *Payload) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
+	// GH-Cp gen: Read lengths of FileContent and ServerFilePath
+	err = binary.Read(r, binary.LittleEndian, &fileContentLen)
+	if err != nil {
+		return err
+	}
+	err = binary.Read(r, binary.LittleEndian, &serverFilePathLen)
+	if err != nil {
+		return err
+	}
 
 	// Allocate slices of the appropriate size if they don't match
 	if len(p.Swap) != int(swapLen) {
@@ -93,6 +125,13 @@ func (p *Payload) UnmarshalBinary(data []byte) error {
 	}
 	if len(p.Msg) != int(msgLen) {
 		p.Msg = make([]byte, msgLen)
+	}
+	// GH-Cp gen: Allocate FileContent and ServerFilePath slices
+	if len(p.FileContent) != int(fileContentLen) {
+		p.FileContent = make([]byte, fileContentLen)
+	}
+	if len(p.ServerFilePath) != int(serverFilePathLen) {
+		p.ServerFilePath = make([]byte, serverFilePathLen)
 	}
 
 	// Read the fields from the buffer
@@ -116,6 +155,15 @@ func (p *Payload) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
+	// GH-Cp gen: Read FileContent and ServerFilePath data
+	err = binary.Read(r, binary.LittleEndian, &p.FileContent)
+	if err != nil {
+		return err
+	}
+	err = binary.Read(r, binary.LittleEndian, &p.ServerFilePath)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -132,14 +180,25 @@ func (p Payload) String() string {
 	if i0Msg < 0 {
 		i0Msg = len(p.Msg)
 	}
+	// GH-Cp gen: Added handling for ServerFilePath
+	i0ServerFilePath := bytes.IndexByte(p.ServerFilePath, 0)
+	if i0ServerFilePath < 0 {
+		i0ServerFilePath = len(p.ServerFilePath)
+	}
+
+	// GH-Cp gen: Modified string formatting to include new fields
 	return fmt.Sprintf("avrSWAP: 	%v\n"+
 		"aviFAIL: 	%v\n"+
 		"accINFILE:  '%s'\n"+
 		"avcOUTNAME: '%s'\n"+
-		"avcMSG:     '%s'\n",
+		"avcMSG:     '%s'\n"+
+		"ServerFilePath: '%s'\n"+
+		"FileContent: [%d bytes]\n",
 		p.Swap[:129],
 		p.Fail,
 		p.InFile[:i0InFile],
 		p.OutName[:i0OutName],
-		p.Msg[:i0Msg])
+		p.Msg[:i0Msg],
+		p.ServerFilePath[:i0ServerFilePath],
+		len(p.FileContent))
 }

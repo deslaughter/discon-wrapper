@@ -17,7 +17,7 @@ func TestServeWs(t *testing.T) {
 
 	// connect handler to websocket function
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		ServeWs(w, r, true)
+		ServeWs(w, r, 1)
 	})
 
 	// Start server in separate go routine
